@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Captação</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #FFDC00;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #001f3f;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #FFDC00;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #FFDC00;
+            color: #001f3f;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #FFD700;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #003366;
+            color: #FFDC00;
+            border-radius: 5px;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora de Captação</h1>
+        <label for="unit">Unidade/Curso:</label>
+        <input type="text" id="unit" placeholder="Digite o nome da unidade/curso">
+
+        <label for="currentUnit">Quantidade de Captados da Unidade:</label>
+        <input type="number" id="currentUnit" placeholder="Digite a quantidade de captados">
+
+        <label for="currentGroup">Quantidade de Captados do Grupo:</label>
+        <input type="number" id="currentGroup" placeholder="Digite a quantidade de captados do grupo">
+
+        <label for="regionalCurrent">Captados da Regional:</label>
+        <input type="number" id="regionalCurrent" placeholder="Digite os captados da regional">
+
+        <label for="regionalGoal">Meta da Regional:</label>
+        <input type="number" id="regionalGoal" placeholder="Digite a meta da regional">
+
+        <label for="goal">Meta Geral da Unidade (2025.1):</label>
+        <input type="number" id="goal" placeholder="Digite a meta">
+
+        <label for="days">Dias de Captação:</label>
+        <input type="number" id="days" placeholder="Digite o número de dias úteis ou atuais">
+
+        <button onclick="calculate()">Calcular</button>
+        <button onclick="clearFields()">Limpar Dados</button>
+        <button onclick="saveAsText()">Salvar como Texto</button>
+        <button onclick="saveAsImage()">Salvar como Imagem</button>
+
+        <div id="info" class="info" style="display: none;"></div>
+
+        <!-- Canvas para gráficos -->
+        <canvas id="chartUnit" style="display: none;"></canvas>
+        <canvas id="chartRegional" style="display: none;"></canvas>
+        <canvas id="chartGroup" style="display: none;"></canvas>
+    </div>
+
+    <script>
+        const groupGoal = 63467; // Meta fixa do grupo
+
+        function calculate() {
+            const unit = document.getElementById('unit').value;
+            const currentUnit = parseInt(document.getElementById('currentUnit').value) || 0;
+            const currentGroup = parseInt(document.getElementById('currentGroup').value) || 0;
+            const regionalCurrent = parseInt(document.getElementById('regionalCurrent').value) || 0;
+            const regionalGoal = parseInt(document.getElementById('regionalGoal').value) || 0;
+            const goal = parseInt(document.getElementById('goal').value) || 0;
+            const days = parseInt(document.getElementById('days').value) || 0; // Número de dias de captação
+
+            // Cálculos Diários (ajustados com o número de dias de captação)
+            const dailyRateUnit = Math.round(currentUnit / days);
+            const dailyRateGroup = Math.round(currentGroup / days);
+            const dailyRateRegional = Math.round(regionalCurrent / days);
+
+            // Cálculos de Projeção ajustados para os dias de captação
+            const projected15Unit = Math.round((currentUnit / days) * 104);
+            const projected30Unit = Math.round((currentUnit / days) * 114);
+            const projected15Regional = Math.round((regionalCurrent / days) * 104);
+            const projected30Regional = Math.round((regionalCurrent / days) * 114);
+            const projected15Group = Math.round((currentGroup / days) * 104);
+            const projected30Group = Math.round((currentGroup / days) * 114);
+
+            // Cálculos de Captação Ideal Diária
+            const idealDailyUnit15 = Math.floor((goal - currentUnit) / (104 - days));
+            const idealDailyUnit30 = Math.floor((goal - currentUnit) / (114 - days));
+
+            // Meta e Progresso
+            const unitToGoal = goal - currentUnit;
+            const groupProgress = (currentGroup / groupGoal) * 100;
+            const regionalProgress = (regionalCurrent / regionalGoal) * 100;
+
+            // Percentual de cada um com relação às metas gerais
+            const percUnitGoal = ((currentUnit / goal) * 100).toFixed(2);
+            const percRegionalGoal = ((regionalCurrent / regionalGoal) * 100).toFixed(2);
+            const percGroupGoal = ((currentGroup / groupGoal) * 100).toFixed(2);
+
+            // Faltando para atingir a meta
+            const regionalToGoal = regionalGoal - regionalCurrent;
+            const groupToGoal = groupGoal - currentGroup;
+
+            // Atualizar informações
+            const infoDiv = document.getElementById('info');
+            infoDiv.style.display = 'block';
+            infoDiv.innerHTML = `
+                <p><strong>Unidade/Curso:</strong> ${unit}</p>
+                <p><strong>Captação Diária Atual da Unidade:</strong> ${dailyRateUnit} alunos/dia</p>
+                <p><strong>Captação Ideal Diária Para bater a Meta da Unidade dia 15 Abril:</strong> ${idealDailyUnit15} alunos/dia</p>
+                <p><strong>Captação Ideal Diária Para bater a Meta da Unidade dia 30 Abril:</strong> ${idealDailyUnit30} alunos/dia</p>
+                <p><strong>Captação Diária Atual do Grupo:</strong> ${dailyRateGroup} alunos/dia</p>
+                <p><strong>Captação Diária Atual da Regional:</strong> ${dailyRateRegional} alunos/dia</p>
+                <p><strong>Meta 15 de Abril - Unidade:</strong> ${projected15Unit} alunos</p>
+                <p><strong>Meta 30 de Abril - Unidade:</strong> ${projected30Unit} alunos</p>
+                <p><strong>Meta 15 de Abril - Regional:</strong> ${projected15Regional} alunos</p>
+                <p><strong>Meta 30 de Abril - Regional:</strong> ${projected30Regional} alunos</p>
+                <p><strong>Meta 15 de Abril - Grupo:</strong> ${projected15Group} alunos</p>
+                <p><strong>Meta 30 de Abril - Grupo:</strong> ${projected30Group} alunos</p>
+                <p><strong>% Atingido da Meta Geral da Unidade:</strong> ${percUnitGoal}%</p>
+                <p><strong>% Atingido da Meta Geral da Regional:</strong> ${percRegionalGoal}%</p>
+                <p><strong>% Atingido da Meta Geral do Grupo:</strong> ${percGroupGoal}%</p>
+                <p><strong>Faltam para atingir a meta da unidade:</strong> ${unitToGoal} alunos</p>
+                <p><strong>Faltam para atingir a meta da regional:</strong> ${regionalToGoal} alunos</p>
+                <p><strong>Faltam para atingir a meta do grupo:</strong> ${groupToGoal} alunos</p>
+            `;
+
+            // Atualizar gráficos com as captações da Unidade, Regional e Grupo
+            const chartUnit = document.getElementById('chartUnit');
+            chartUnit.style.display = 'block';
+            new Chart(chartUnit, {
+                type: 'bar',
+                data: {
+                    labels: ['Meta 15 de Abril', 'Meta 30 de Abril'],
+                    datasets: [{
+                        label: 'Captação Unidade',
+                        data: [projected15Unit, projected30Unit],
+                        backgroundColor: ['#FFDC00', '#FFD700'],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico Regional
+            const chartRegional = document.getElementById('chartRegional');
+            chartRegional.style.display = 'block';
+            new Chart(chartRegional, {
+                type: 'bar',
+                data: {
+                    labels: ['Meta 15 de Abril', 'Meta 30 de Abril'],
+                    datasets: [{
+                        label: 'Captação Regional',
+                        data: [projected15Regional, projected30Regional],
+                        backgroundColor: ['#FFDC00', '#FFD700'],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico Grupo
+            const chartGroup = document.getElementById('chartGroup');
+            chartGroup.style.display = 'block';
+            new Chart(chartGroup, {
+                type: 'bar',
+                data: {
+                    labels: ['Meta 15 de Abril', 'Meta 30 de Abril'],
+                    datasets: [{
+                        label: 'Captação Grupo',
+                        data: [projected15Group, projected30Group],
+                        backgroundColor: ['#FFDC00', '#FFD700'],
+                        borderColor: '#fff',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function clearFields() {
+            document.getElementById('unit').value = '';
+            document.getElementById('currentUnit').value = '';
+            document.getElementById('currentGroup').value = '';
+            document.getElementById('regionalCurrent').value = '';
+            document.getElementById('regionalGoal').value = '';
+            document.getElementById('goal').value = '';
+            document.getElementById('days').value = '';
+            document.getElementById('info').style.display = 'none';
+            document.getElementById('chartUnit').style.display = 'none';
+            document.getElementById('chartRegional').style.display = 'none';
+            document.getElementById('chartGroup').style.display = 'none';
+        }
+
+        function saveAsText() {
+            const filename = prompt('Digite o nome do arquivo (sem extensão):', 'dados_captação');
+            if (filename) {
+                const data = document.getElementById('info').innerText;
+                const blob = new Blob([data], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename + '.txt';
+                link.click();
+            }
+        }
+
+        function saveAsImage() {
+            html2canvas(document.querySelector(".container")).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL("image/png");
+                link.download = "dados_captação.png";
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
